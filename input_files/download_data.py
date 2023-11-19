@@ -1,19 +1,13 @@
 import os
 import sys
 import argparse
+from tqdm import tqdm
 from pprint import pprint
 
 import boto3
 
 
 VALID_IMG_EXTS = ["jpg", "jpeg", "png"]
-FOLDER_PREFIXES = [
-    "camera-clarity-dataset",
-    "row_runner/dataset/validation/",
-    "object-detection-dataset",
-    "row_runner_2/dataset"
-]
-
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -69,9 +63,10 @@ def download_from_resource(resource,
         # to the local directory.
         if verbose:
             print("Image files: ")
-        for obj in objects.get('Contents', []):
+
+        for obj in tqdm(objects.get("Contents", []), unit="files"):
             # Extract the object key, i.e., the file name.
-            obj_key = obj['Key']
+            obj_key = obj["Key"]
             obj_ext = obj_key.split(".")[-1]
             if obj_ext in VALID_IMG_EXTS:
                 # Generate local file path by joining local 
