@@ -2,6 +2,7 @@ import os
 import argparse
 
 import torch
+import torchvision.transforms as transforms
 from lavis.models import load_model_and_preprocess
 from PIL import Image
 
@@ -26,16 +27,20 @@ def parse_args():
 
 def read_image(img_path):
     # Read the image.
-    image = Image.open(img_path)
+    img_pil = Image.open(img_path)
 
     # Define a transform to convert the image to tensor.
-    transform = transforms.ToTensor()
+    # TODO: Input image size for BLIP model is 384 x 384.
+    # Verify after reading about it from the research paper.
+    transform = transforms.Compose([
+        transforms.Resize((384, 384)),  
+        transforms.ToTensor(),
+    ])
 
-    # Convert the image to PyTorch tensor
-    tensor = transform(image)
+    # Convert the image to PyTorch tensor.
+    img_tensor = transform(img_pil).unsqueeze(0)
 
-    # Print the converted image tensor
-    return tensor
+    return img_tensor
 
 
 def main():
@@ -48,8 +53,8 @@ def main():
     # Loads BLIP caption base model, with finetuned checkpoints on MSCOCO captioning dataset.
     # this also loads the associated image processors
     model, vis_processors, _ = load_model_and_preprocess(
-        name="blip_caption", 
-        model_type="base_coco", 
+        name="blip2_t5", 
+        model_type="caption_coco_flant5xl", 
         is_eval=True, 
         device=device
     )
@@ -60,15 +65,15 @@ def main():
         print("Image found.")
         image = read_image(img_path).to(device)
         if verbose:
-            print(f"image.shape: {image_shape}")
+            print(f"image_shape: {image.shape}")
             print(f"image: \n{image}")
             print("-" * 75)
     else:
         print("Image not found.")
 
     # Generate caption for the image.
-    model.generate({"image": image})
-    print(f"model keys: {model.keys()}")
+    output = model.generate({"image": image})
+    print(f"output: {output}")
     print("-" * 75)
 
 
