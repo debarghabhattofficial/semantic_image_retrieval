@@ -1,3 +1,4 @@
+"batch_size" : 8
 "model" :
     "name" : "blip_caption"
     "type" : "base_coco"
