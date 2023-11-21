@@ -1,7 +1,9 @@
 import os
 
-import torchvision.transforms as transforms
+from torchvision import transforms, datasets
+
 from PIL import Image, ImageDraw, ImageFont
+import textwrap
 
 
 def read_image(img_path, input_size=(384, 384)):
@@ -20,6 +22,24 @@ def read_image(img_path, input_size=(384, 384)):
     img_tensor = transform(img_pil).unsqueeze(0)
 
     return img_tensor
+
+
+def load_dataset(dataset_path, 
+                 batch_size,
+                 input_size=(384, 384)):
+    # Define the transformation to be applied to each image
+    transform = transforms.Compose([
+        transforms.Resize(input_size),  # Resize the image.
+        transforms.ToTensor(),  # Convert the image to a tensor.
+    ])
+
+    # Create a custom dataset.
+    custom_dataset = datasets.ImageFolder(
+        root=dataset_path, 
+        transform=transform
+    )
+
+    return custom_dataset
 
 
 def add_caption(img_path, 
@@ -44,8 +64,11 @@ def add_caption(img_path,
     # the canvas.
     canvas.paste(img_pil, (0, 0))
 
-    # Add a caption at the bottom of the canvas.
+    # get draw object to add a caption at the 
+    # bottom of the canvas.
     draw = ImageDraw.Draw(canvas)
+
+    #  Specify font type and color.
     try:
         font = ImageFont.truetype(
             "/usr/share/fonts/truetype/liberation/LiberationSerif-Regular.ttf", 
@@ -53,14 +76,27 @@ def add_caption(img_path,
         )
     except IOError:
         font = ImageFont.load_default()
-    caption_position = (10, img_pil.height + 10)
     caption_font_color = (0, 0, 0)  # Black
-    draw.text(
-        caption_position, 
+
+    # Wrap caption text to allow maximum of 40 
+    # characters in a single line.
+    caption_text = textwrap.wrap(
         caption_text, 
-        font=font, 
-        fill=caption_font_color
+        width=40
     )
+
+    # Add caption text line-by-line.
+    for i, line in enumerate(caption_text):
+        line_position = (
+            10, 
+            img_pil.height + 10 + (i * 20)
+        )
+        draw.text(
+            line_position, 
+            line, 
+            font=font, 
+            fill=caption_font_color
+        )
 
     # Save the modified image having caption.
     if not out_dir is None:

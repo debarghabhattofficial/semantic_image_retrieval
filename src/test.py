@@ -16,8 +16,15 @@ def parse_args():
         help="Path to config file."
     )
     parser.add_argument(
+        "--dataset_path",
+        type=str,
+        default="",
+        help="Path to dataset containing test images."
+    )
+    parser.add_argument(
         "--img_path",
         type=str,
+        default="",
         help="Path to input image."
     )
     parser.add_argument(
@@ -26,9 +33,9 @@ def parse_args():
         help="Path to output directory to store results."
     )
     parser.add_argument(
-        "--process_batch", 
+        "--infer_batch", 
         action="store_true",
-        help="Use to process batch input."
+        help="Use to run inference on batch input."
     )
     parser.add_argument(
         "--verbose", 
@@ -62,17 +69,22 @@ def main():
         model_type=config["model"]["type"],  # "caption_coco_flant5xl", 
         input_size=tuple(config["model"]["input_size"]),
         is_eval=config["model"]["is_eval"],
+        batch_size=config["batch_size"],
         device=device,
         verbose=args.verbose
     )
 
-    if not args.process_batch:
+    if not args.infer_batch:
         img_cap.inference_on_single_image(
             img_path=args.img_path,
             out_dir=args.out_dir
         )
     else:
         # TODO: Implement batch inference.
+        img_cap.inference_on_batch_of_images(
+            dataset_path=args.dataset_path,
+            out_dir=args.out_dir
+        )
         pass
 
     return
