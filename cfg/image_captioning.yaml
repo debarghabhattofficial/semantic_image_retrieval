@@ -1,0 +1,5 @@
+"model" :
+    "name" : "blip_caption"
+    "type" : "base_coco"
+    "input_size" : [384, 384]
+    "is_eval" : True
