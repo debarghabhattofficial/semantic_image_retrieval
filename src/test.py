@@ -80,12 +80,10 @@ def main():
             out_dir=args.out_dir
         )
     else:
-        # TODO: Implement batch inference.
         img_cap.inference_on_batch_of_images(
             dataset_path=args.dataset_path,
             out_dir=args.out_dir
         )
-        pass
 
     return
 
