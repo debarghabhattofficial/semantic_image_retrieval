@@ -134,7 +134,6 @@ class VisualQuestionAnswering:
             cur_ans = ""
             output = self.model.generate(
                 {"image": img_tensor, "prompt": cur_prompt},
-                inference_method="generate"
             )
             cur_ans = output[0]
             print(f"Answer: {cur_ans}")
