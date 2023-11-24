@@ -3,8 +3,7 @@ import yaml
 
 import torch
 
-from image_captioning import read_image, add_caption
-from image_captioning import ImageCaptioning
+from visual_question_answering import VisualQuestionAnswering
 
 
 def parse_args():
@@ -64,7 +63,7 @@ def main():
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    img_cap = ImageCaptioning(
+    vqa = VisualQuestionAnswering(
         model_name=config["model"]["name"],  # "blip2_t5", 
         model_type=config["model"]["type"],  # "caption_coco_flant5xl", 
         input_size=tuple(config["model"]["input_size"]),
@@ -75,15 +74,14 @@ def main():
     )
 
     if not args.infer_batch:
-        img_cap.inference_on_single_image(
+        vqa.inference_on_single_image(
             img_path=args.img_path,
             out_dir=args.out_dir
         )
     else:
-        img_cap.inference_on_batch_of_images(
-            dataset_path=args.dataset_path,
-            out_dir=args.out_dir
-        )
+        # TODO: Implement batch inference later.
+        # Might not be required.
+        pass
 
     return
 

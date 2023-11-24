@@ -9,9 +9,9 @@ from lavis.models import load_model_and_preprocess
 from utils.utils import read_image, add_caption, load_dataset
 
 
-class ImageCaptioning:
+class VisualQuestionAnswering:
     """
-    This class performs image captioning.
+    This class performs visual question answering.
     """
     def __init__(self, 
                  model_name, 
