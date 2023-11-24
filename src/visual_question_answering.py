@@ -132,8 +132,8 @@ class VisualQuestionAnswering:
             ) + " " + self.get_formatted_prompt((cur_ques, ""))
             print(f"Prompt: {cur_prompt}")
             cur_ans = ""
-            output = self.model.predict_answers(
-                {"image": img_tensor, "text_input": cur_ques},
+            output = self.model.generate(
+                {"image": img_tensor, "prompt": cur_prompt},
                 inference_method="generate"
             )
             cur_ans = output[0]
