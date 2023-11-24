@@ -1,6 +1,6 @@
 "batch_size" : 8
 "model" :
     "name" : "blip2_t5"
-    "type" : "caption_coco_flant5xl"
-    "input_size" : [364, 364]
+    "type" : "pretrain_flant5xxl"
+    "input_size" : [224, 224]
     "is_eval" : True
