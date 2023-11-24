@@ -1,6 +1,6 @@
 "batch_size" : 8
 "model" :
-    "name" : "blip_caption"
-    "type" : "base_coco"
+    "name" : "blip_vqa"
+    "type" : "vqav2"
     "input_size" : [384, 384]
     "is_eval" : True

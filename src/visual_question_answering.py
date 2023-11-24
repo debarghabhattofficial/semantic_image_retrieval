@@ -94,7 +94,6 @@ class VisualQuestionAnswering:
                 print("-" * 75)
 
             context_history = []
-            template = 
             # Generate prompts and asks questiosn to
             # the model.
             while True:
