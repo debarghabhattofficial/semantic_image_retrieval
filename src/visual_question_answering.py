@@ -88,7 +88,7 @@ class VisualQuestionAnswering:
         # the model.
         while True:
             cur_ques = input("Enter question: ")
-            cur_ques = str(cur_ques)
+            cur_ques = str(cur_ques).strip().lower()
             cur_prompt = " ".join(
                 list(map(
                     lambda context: self.get_formatted_prompt(context), 
@@ -123,7 +123,7 @@ class VisualQuestionAnswering:
         # the model.
         while True:
             cur_ques = input("Enter question: ")
-            cur_ques = str(cur_ques)
+            cur_ques = str(cur_ques).strip().lower()
             cur_prompt = " ".join(
                 list(map(
                     lambda context: self.get_formatted_prompt(context), 
