@@ -9,6 +9,31 @@ from lavis.models import load_model_and_preprocess
 from utils.utils import read_image, add_caption, load_dataset
 
 
+class PromptTemplate:
+    """
+    This class defines the template of the input
+    prompts of the VQA model.
+    """
+    def __init__(self, template):
+        self.template = template
+
+    def generate_prompt(self, *args):
+        """
+        This method generates the prompt from the
+        template and the arguments.
+        """
+        formatted_prompt = None
+        try:
+            formatted_prompt = self.template.format(*args)
+        except Exception as e:
+            err_msg = f"Error: {e}\n" + \
+                "Ensure no. of placeholders matches no. of arguments."
+            print(err_msg)
+            formatted_prompt =  None
+
+        return formatted_prompt
+
+
 class VisualQuestionAnswering:
     """
     This class performs visual question answering.
@@ -43,6 +68,16 @@ class VisualQuestionAnswering:
 
         return
 
+    def get_formatted_prompt(self,
+                             qa_pair):
+        """
+        This method returns a formated prompt.
+        """
+        formatted_prompt = f"Question: {qa_pair[0]} " + \
+            f"Answer: {qa_pair[1]}"
+        return formatted_prompt
+
+
     def inference_on_single_image(self, 
                                   img_path,
                                   out_dir):
@@ -58,18 +93,37 @@ class VisualQuestionAnswering:
                 print(f"img_tensor: \n{img_tensor}")
                 print("-" * 75)
 
-            # Generate caption for the image.
-            output = self.model.generate({"image": img_tensor})
-            print(f"output: {output}")
-            print("-" * 75)
+            context_history = []
+            template = 
+            # Generate prompts and asks questiosn to
+            # the model.
+            while True:
+                cur_ques = input("Enter question: ")
+                cur_ques = str(cur_ques)
+                cur_prompt = " ".join(
+                    list(map(
+                        lambda context: self.get_formatted_prompt(context), 
+                        context_history
+                    ))
+                ) + self.get_formatted_prompt((cur_ques, ""))
+                print(f"Prompt: {cur_prompt}")
+                # output = self.model.generate(
+                #     {"image": img_tensor, "prompt": cur_prompt}
+                # )
+                cnt_msg = "Press 'N' to abort, " + \
+                    "or any other key to ask another question."
+                cnt = input(cnt_msg)
+                cnt = str(cnt)
+                if (cnt == "N") or (cnt == "n"):
+                    break
 
             # Extract the caption from the output and
             # add to the bottom of the image.
-            add_caption(
-                img_path=img_path, 
-                caption_text=output[0],
-                out_dir=out_dir
-            )
+            # add_caption(
+            #     img_path=img_path, 
+            #     caption_text=output[0],
+            #     out_dir=out_dir
+            # )
         else:
             print("Image not found.")
 
@@ -81,49 +135,8 @@ class VisualQuestionAnswering:
         """
         This method performs inference on a batch 
         of images.
+        TODO: Implement this method later. This might
+        not be even required for the task of vqa where
+        we generally focus on a single image.
         """
-        # Load the dataset.
-        dataset = load_dataset(
-            dataset_path=dataset_path, 
-            batch_size=self.batch_size,
-            input_size=self.input_size
-        )
-        # Create a DataLoader to efficiently load batches 
-        # of images.
-        data_loader = DataLoader(
-            dataset, 
-            batch_size=self.batch_size, 
-            shuffle=False
-        )
-
-        # Iterate over batches of data.
-        for batch_num, (batch_imgs, batch_lbls) in enumerate(tqdm(data_loader, unit="batch")):
-            # Generate caption for the batch of images.
-            batch_imgs = batch_imgs.to(self.device)
-            output = self.model.generate({"image": batch_imgs})
-
-            # Iterate over individual images in the batch.
-            for lbl_num in range(len(batch_lbls)):
-                # Get the index of the image in the dataset.
-                img_idx = (batch_num * data_loader.batch_size) + lbl_num
-
-                # Extract the (file)name of the image.
-                img_path = dataset.imgs[img_idx][0]
-
-                # Generate the parent directory path for
-                # saving modified image with generated 
-                # caption.
-                out_par_dir = os.path.join(
-                    out_dir, 
-                    dataset.classes[batch_lbls[lbl_num]]
-                )
-
-                # Extract the caption from the output and
-                # add to the bottom of the image.
-                add_caption(
-                    img_path=img_path, 
-                    caption_text=output[lbl_num],
-                    out_dir=out_par_dir
-                )
-
         pass

@@ -64,8 +64,8 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     vqa = VisualQuestionAnswering(
-        model_name=config["model"]["name"],  # "blip2_t5", 
-        model_type=config["model"]["type"],  # "caption_coco_flant5xl", 
+        model_name=config["model"]["name"],
+        model_type=config["model"]["type"],
         input_size=tuple(config["model"]["input_size"]),
         is_eval=config["model"]["is_eval"],
         batch_size=config["batch_size"],
