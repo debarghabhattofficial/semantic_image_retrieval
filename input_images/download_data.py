@@ -49,8 +49,13 @@ def download_from_resource(resource,
                            folder_prefix, 
                            local_directory, 
                            verbose=False):
-    resource = boto3.client(resource)
+    """
+    This method downloads a file or directory from a
+    remote resource (e.g., S3).
+    """
+    file_download_success = True
 
+    resource = boto3.client(resource)
     try: 
         # List all objects in the specified S3 bucket with 
         # the given prefix (folder)
@@ -90,9 +95,11 @@ def download_from_resource(resource,
                     print(f"Downloaded {obj_key} to {local_file_path}.")
     except Exception as e:
         print(f"Error: {e}")
-        return False
+        file_download_success = False
     finally:
-        return True
+        file_download_success = True
+
+    return file_download_success
 
 
 def main():
