@@ -3,7 +3,6 @@ import yaml
 
 import torch
 
-from image_captioning import read_image, add_caption
 from image_captioning import ImageCaptioning
 
 
