@@ -1,6 +1,7 @@
 import os
 import argparse
 from tqdm import tqdm
+from pprint import pprint
 
 import torch
 from torch.utils.data import DataLoader
@@ -168,6 +169,8 @@ class VisualQuestionAnswering:
                 context_history = self.infer_using_blip(img_tensor)
             elif "blip2" in self.model_name:
                 context_history = self.infer_using_blip2(img_tensor)
+            print(f"Context history: ")
+            pprint(context_history)
 
             # # Extract the caption from the output and
             # # add to the bottom of the image.
