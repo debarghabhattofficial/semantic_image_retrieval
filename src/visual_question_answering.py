@@ -132,8 +132,7 @@ class VisualQuestionAnswering:
             ) + " " + self.get_formatted_prompt((cur_ques, ""))
             print(f"Prompt: {cur_prompt}")
             cur_ans = ""
-            output = self.model.generate(
-                {"image": img_tensor, "prompt": cur_prompt},
+            output = self.model.generate({"image": img_tensor, "prompt": cur_prompt},
             )
             cur_ans = output[0]
             print(f"Answer: {cur_ans}")
