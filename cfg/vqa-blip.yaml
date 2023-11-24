@@ -2,5 +2,5 @@
 "model" :
     "name" : "blip_vqa"
     "type" : "vqav2"
-    "input_size" : [384, 384]
+    "input_size" : [480, 480]
     "is_eval" : True
