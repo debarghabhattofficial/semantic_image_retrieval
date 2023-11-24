@@ -77,6 +77,75 @@ class VisualQuestionAnswering:
             f"Answer: {qa_pair[1]}"
         return formatted_prompt
 
+    def infer_using_blip(self,
+                         img_tensor):
+        """
+        This method runs inference using the BLIP model.
+        """
+        context_history = []
+        # Generate prompts and asks questiosn to
+        # the model.
+        while True:
+            cur_ques = input("Enter question: ")
+            cur_ques = str(cur_ques)
+            cur_prompt = " ".join(
+                list(map(
+                    lambda context: self.get_formatted_prompt(context), 
+                    context_history
+                ))
+            ) + " " + self.get_formatted_prompt((cur_ques, ""))
+            print(f"Prompt: {cur_prompt}")
+            cur_ans = ""
+            output = self.model.predict_answers(
+                {"image": img_tensor, "text_input": cur_ques},
+                inference_method="generate"
+            )
+            cur_ans = output[0]
+            print(f"Answer: {cur_ans}")
+            context_history.append((cur_ques, cur_ans))
+            cnt_msg = "Press 'N' to abort, " + \
+                "or any other key to ask another question: "
+            cnt = input(cnt_msg)
+            cnt = str(cnt)
+            if (cnt == "N") or (cnt == "n"):
+                break
+                
+        return context_history
+
+    def infer_using_blip2(self,
+                          img_tensor):
+        """
+        This method runs inference using the BLIP-2 model.
+        """
+        context_history = []
+        # Generate prompts and asks questiosn to
+        # the model.
+        while True:
+            cur_ques = input("Enter question: ")
+            cur_ques = str(cur_ques)
+            cur_prompt = " ".join(
+                list(map(
+                    lambda context: self.get_formatted_prompt(context), 
+                    context_history
+                ))
+            ) + " " + self.get_formatted_prompt((cur_ques, ""))
+            print(f"Prompt: {cur_prompt}")
+            cur_ans = ""
+            output = self.model.predict_answers(
+                {"image": img_tensor, "text_input": cur_ques},
+                inference_method="generate"
+            )
+            cur_ans = output[0]
+            print(f"Answer: {cur_ans}")
+            context_history.append((cur_ques, cur_ans))
+            cnt_msg = "Press 'N' to abort, " + \
+                "or any other key to ask another question: "
+            cnt = input(cnt_msg)
+            cnt = str(cnt)
+            if (cnt == "N") or (cnt == "n"):
+                break
+                
+        return context_history    
 
     def inference_on_single_image(self, 
                                   img_path,
@@ -93,31 +162,15 @@ class VisualQuestionAnswering:
                 print(f"img_tensor: \n{img_tensor}")
                 print("-" * 75)
 
-            context_history = []
-            # Generate prompts and asks questiosn to
-            # the model.
-            while True:
-                cur_ques = input("Enter question: ")
-                cur_ques = str(cur_ques)
-                cur_prompt = " ".join(
-                    list(map(
-                        lambda context: self.get_formatted_prompt(context), 
-                        context_history
-                    ))
-                ) + self.get_formatted_prompt((cur_ques, ""))
-                print(f"Prompt: {cur_prompt}")
-                # output = self.model.generate(
-                #     {"image": img_tensor, "prompt": cur_prompt}
-                # )
-                cnt_msg = "Press 'N' to abort, " + \
-                    "or any other key to ask another question."
-                cnt = input(cnt_msg)
-                cnt = str(cnt)
-                if (cnt == "N") or (cnt == "n"):
-                    break
+            # Run inference on the image.
+            context_history = None
+            if "blip2" not in self.model_name:
+                context_history = self.infer_using_blip(img_tensor)
+            elif "blip2" in self.model_name:
+                context_history = self.infer_using_blip2(img_tensor)
 
-            # Extract the caption from the output and
-            # add to the bottom of the image.
+            # # Extract the caption from the output and
+            # # add to the bottom of the image.
             # add_caption(
             #     img_path=img_path, 
             #     caption_text=output[0],
