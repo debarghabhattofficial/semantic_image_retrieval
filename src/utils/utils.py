@@ -111,3 +111,100 @@ def add_caption(img_path,
         canvas.save(out_path)
 
     return
+
+
+def add_context_history(img_path, 
+                        context_history, 
+                        out_dir):
+    """
+    This method adds a context history at the 
+    bottom of an image.
+    """
+    # # Step 1: Read input image.
+    img_pil = Image.open(img_path)
+
+    # Create a rectangular canvas with off-white 
+    # background color.
+    num_qa_pairs = len(context_history)
+    canvas = Image.new(
+        "RGB", 
+        (
+            img_pil.width, 
+            img_pil.height + (num_qa_pairs * 100)
+        ), 
+        (245, 245, 245)
+    )
+
+    # Copy the input image on the top portion of 
+    # the canvas.
+    canvas.paste(img_pil, (0, 0))
+
+    # get draw object to add a caption at the 
+    # bottom of the canvas.
+    draw = ImageDraw.Draw(canvas)
+
+    #  Specify font type and color.
+    try:
+        font = ImageFont.truetype(
+            "/usr/share/fonts/truetype/liberation/LiberationSerif-Regular.ttf", 
+            size=20
+        )
+    except IOError:
+        font = ImageFont.load_default()
+    caption_font_color = (0, 0, 0)  # Black
+
+    for m, qa_pair in enumerate(context_history):
+        # Add question.
+        # Wrap caption text to allow maximum of 40 
+        # characters in a single line.
+        q_text = textwrap.wrap(
+            f"Question: {qa_pair[0]}", 
+            width=40
+        )
+        num_q_lines = len(q_text)
+        # Add caption text line-by-line.
+        for i, line in enumerate(q_text):
+            line_position = (
+                10, 
+                img_pil.height + 10 + (m * 100) + (i * 20)
+            )
+            draw.text(
+                line_position, 
+                line, 
+                font=font, 
+                fill=caption_font_color
+            )
+
+        # Add answer.
+        # Wrap caption text to allow maximum of 40 
+        # characters in a single line.
+        a_text = textwrap.wrap(
+            f"Answer: {qa_pair[1]}", 
+            width=40
+        )
+        # Add caption text line-by-line.
+        for j, line in enumerate(a_text):
+            line_position = (
+                10, 
+                img_pil.height + 10 + (m * 100) + (num_q_lines * 20) + (j * 20)
+            )
+            draw.text(
+                line_position, 
+                line, 
+                font=font, 
+                fill=caption_font_color
+            )
+
+    # Save the modified image having caption.
+    if not out_dir is None:
+        # Create directory is it does not exist.
+        if not os.path.isdir(out_dir):
+            os.makedirs(out_dir)
+        # Set the output path.
+        out_path = os.path.join(
+            out_dir, os.path.basename(img_path)
+        )
+        # Save the modified image having caption.
+        canvas.save(out_path)
+
+    return

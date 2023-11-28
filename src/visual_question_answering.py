@@ -7,7 +7,7 @@ import torch
 from torch.utils.data import DataLoader
 from lavis.models import load_model_and_preprocess
 
-from utils.utils import read_image, add_caption, load_dataset
+from utils.utils import read_image, add_context_history, load_dataset
 
 
 class PromptTemplate:
@@ -88,7 +88,7 @@ class VisualQuestionAnswering:
         # the model.
         while True:
             cur_ques = input("Enter question: ")
-            cur_ques = str(cur_ques)
+            cur_ques = str(cur_ques).strip().lower()
             cur_prompt = " ".join(
                 list(map(
                     lambda context: self.get_formatted_prompt(context), 
@@ -123,7 +123,7 @@ class VisualQuestionAnswering:
         # the model.
         while True:
             cur_ques = input("Enter question: ")
-            cur_ques = str(cur_ques)
+            cur_ques = str(cur_ques).strip().lower()
             cur_prompt = " ".join(
                 list(map(
                     lambda context: self.get_formatted_prompt(context), 
@@ -171,13 +171,13 @@ class VisualQuestionAnswering:
             print(f"Context history: ")
             pprint(context_history)
 
-            # # Extract the caption from the output and
-            # # add to the bottom of the image.
-            # add_caption(
-            #     img_path=img_path, 
-            #     caption_text=output[0],
-            #     out_dir=out_dir
-            # )
+            # Extract the caption from the output and
+            # add to the bottom of the image.
+            add_context_history(
+                img_path=img_path, 
+                context_history=context_history,
+                out_dir=out_dir
+            )
         else:
             print("Image not found.")
 
