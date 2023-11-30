@@ -4,7 +4,9 @@ cd "../src"
 
 python test.py \
     --cfg_path "../cfg/vqa-blip.yaml" \
-    --dataset_path "../input_images/test_dataset" \
+    --dataset_path "../input_images/test_set" \
+    --question_path "../input_questions/test_questions.yaml" \
     --img_path "../input_images/row_runner_2_vines_april_block1_0102.jpg" \
     --out_dir "../results/vqa/blip/" \
+    --infer_batch \
     --verbose

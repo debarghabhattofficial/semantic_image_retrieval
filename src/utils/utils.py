@@ -1,4 +1,5 @@
 import os
+import yaml
 
 from torchvision import transforms, datasets
 
@@ -40,6 +41,27 @@ def load_dataset(dataset_path,
     )
 
     return custom_dataset
+
+
+def load_config(config_path):
+    """
+    This method reads the configuration from a
+    YAML file.
+    """
+    with open(config_path, "r") as f:
+        config = yaml.load(f, Loader=yaml.FullLoader)
+    return config
+
+
+def load_question_set(question_path):
+    """
+    This method reads a set of questions from a
+    YAML file at the specified path.
+    """
+    ques_set = None
+    with open(question_path, "r") as f:
+        ques_set = yaml.load(f, Loader=yaml.FullLoader)
+    return ques_set
 
 
 def add_caption(img_path, 

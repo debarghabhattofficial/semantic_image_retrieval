@@ -4,6 +4,7 @@ import yaml
 import torch
 
 from visual_question_answering import VisualQuestionAnswering
+from utils.utils import load_config
 
 
 def parse_args():
@@ -27,6 +28,12 @@ def parse_args():
         help="Path to input image."
     )
     parser.add_argument(
+        "--question_path",
+        type=str,
+        default="",
+        help="Path to set of questions."
+    )
+    parser.add_argument(
         "--out_dir",
         type=str,
         help="Path to output directory to store results."
@@ -45,16 +52,6 @@ def parse_args():
 
     args = parser.parse_args()
     return args
-
-
-def load_config(config_path):
-    """
-    This method reads the configuration from a
-    YAML file.
-    """
-    with open(config_path, "r") as f:
-        config = yaml.load(f, Loader=yaml.FullLoader)
-    return config
 
 
 def main():
@@ -81,6 +78,11 @@ def main():
     else:
         # TODO: Implement batch inference later.
         # Might not be required.
+        vqa.inference_on_batch_of_images(
+            dataset_path=args.dataset_path,
+            question_path=args.question_path,
+            out_dir=args.out_dir
+        )
         pass
 
     return
