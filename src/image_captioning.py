@@ -126,4 +126,4 @@ class ImageCaptioning:
                     out_dir=out_par_dir
                 )
 
-        pass
+        return
