@@ -80,6 +80,17 @@ class VisualQuestionAnswering:
             f"Answer: {qa_pair[1]}"
         return formatted_prompt
 
+    def batch_of_formatted_prompts(self,
+                                   batch_qa_pairs):
+        """
+        This method returns a batch of formatted prompts.
+        """    
+        batch_formatted_prompts = list(map(
+            lambda qa_pair: self.get_formatted_prompt(qa_pair),
+            batch_qa_pairs
+        ))
+        return batch_formatted_prompts
+
     def infer_using_blip(self,
                          img_tensor):
         """
@@ -114,6 +125,76 @@ class VisualQuestionAnswering:
                 break
                 
         return context_history
+
+    def infer_using_blip2(self,
+                          img_tensor):
+        """
+        This method runs inference using the BLIP-2 model.
+        """
+        context_history = []
+        # Generate prompts and asks questions to
+        # the model.
+        while True:
+            cur_ques = input("Enter question: ")
+            cur_ques = str(cur_ques).strip().lower()
+            cur_prompt = " ".join(
+                list(map(
+                    lambda context: self.get_formatted_prompt(context), 
+                    context_history
+                ))
+            ) + " " + self.get_formatted_prompt((cur_ques, ""))
+            print(f"Prompt: {cur_prompt}")
+            cur_ans = ""
+            output = self.model.generate(
+                {"image": img_tensor, "prompt": cur_prompt},
+            )
+            cur_ans = output[0]
+            print(f"Answer: {cur_ans}")
+            context_history.append((cur_ques, cur_ans))
+            cnt_msg = "Press 'N' to abort, " + \
+                "or any other key to ask another question: "
+            cnt = input(cnt_msg)
+            cnt = str(cnt)
+            if (cnt == "N") or (cnt == "n"):
+                break
+                
+        return context_history  
+
+    def inference_on_single_image(self, 
+                                  img_path,
+                                  out_dir):
+        """
+        This method performs inference on a single image.
+        """
+        image = None
+        if os.path.exists(img_path):
+            # Preprocess the image and return tensor.
+            img_tensor = read_image(img_path, self.input_size).to(self.device)
+            if self.verbose:
+                print(f"img_tensor.shape: {img_tensor.shape}")
+                print(f"img_tensor: \n{img_tensor}")
+                print("-" * 75)
+
+            # Run inference on the image.
+            context_history = None
+            if "blip2" not in self.model_name:
+                context_history = self.infer_using_blip(img_tensor)
+            elif "blip2" in self.model_name:
+                context_history = self.infer_using_blip2(img_tensor)
+            print(f"Context history: ")
+            pprint(context_history)
+
+            # Extract the caption from the output and
+            # add to the bottom of the image.
+            add_context_history(
+                img_path=img_path, 
+                context_history=context_history,
+                out_dir=out_dir
+            )
+        else:
+            print("Image not found.")
+
+        return
 
     def infer_batch_using_blip(self,
                                batch_imgs,
@@ -151,75 +232,48 @@ class VisualQuestionAnswering:
                 
         return batch_context_histories
 
-    def infer_using_blip2(self,
-                          img_tensor):
+    def infer_batch_using_blip2(self,
+                                batch_imgs,
+                                questions):
         """
-        This method runs inference using the BLIP-2 model.
+        This method runs inference on a batch using the BLIP-2 model.
         """
-        context_history = []
+        batch_context_histories = []
         # Generate prompts and asks questions to
         # the model.
-        while True:
-            cur_ques = input("Enter question: ")
-            cur_ques = str(cur_ques).strip().lower()
-            cur_prompt = " ".join(
-                list(map(
-                    lambda context: self.get_formatted_prompt(context), 
-                    context_history
-                ))
-            ) + " " + self.get_formatted_prompt((cur_ques, ""))
-            print(f"Prompt: {cur_prompt}")
-            cur_ans = ""
-            output = self.model.generate(
-                {"image": img_tensor, "prompt": cur_prompt},
+        for cur_ques in questions:
+            cur_ques = cur_ques.strip().lower()
+            batch_cur_ques = self.batch_size * [cur_ques]
+            batch_cur_prompt = list(map(
+                lambda context: self.get_formatted_prompt(batch_context), 
+                batch_context_histories
+            ))
+            print(f"batch_cur_prompt: \n{batch_cur_prompt}")
+            print("-" * 75)
+            return
+            # print(f"# imgs in batch: {batch_imgs.shape[0]}")
+            # print(f"# ques in batch: {len(batch_cur_ques)}")
+            # cur_prompt = " ".join(
+            #     list(map(
+            #         lambda context: self.get_formatted_prompt(context), 
+            #         context_history
+            #     ))
+            # ) + " " + self.get_formatted_prompt((cur_ques, ""))
+            # print(f"Prompt: {cur_prompt}")
+            # cur_ans = ""
+            output = self.model.predict_answers(
+                {"image": batch_imgs, "text_input": batch_cur_ques},
+                inference_method="generate"
             )
-            cur_ans = output[0]
-            print(f"Answer: {cur_ans}")
-            context_history.append((cur_ques, cur_ans))
-            cnt_msg = "Press 'N' to abort, " + \
-                "or any other key to ask another question: "
-            cnt = input(cnt_msg)
-            cnt = str(cnt)
-            if (cnt == "N") or (cnt == "n"):
-                break
+            # print("Answer batch: ")
+            # pprint(output)
+            # print("-" * 75)
+
+            batch_context_histories.append(
+                tuple(zip(batch_cur_ques, output))
+            )
                 
-        return context_history    
-
-    def inference_on_single_image(self, 
-                                  img_path,
-                                  out_dir):
-        """
-        This method performs inference on a single image.
-        """
-        image = None
-        if os.path.exists(img_path):
-            # Preprocess the image and return tensor.
-            img_tensor = read_image(img_path, self.input_size).to(self.device)
-            if self.verbose:
-                print(f"img_tensor.shape: {img_tensor.shape}")
-                print(f"img_tensor: \n{img_tensor}")
-                print("-" * 75)
-
-            # Run inference on the image.
-            context_history = None
-            if "blip2" not in self.model_name:
-                context_history = self.infer_using_blip(img_tensor)
-            elif "blip2" in self.model_name:
-                context_history = self.infer_using_blip2(img_tensor)
-            print(f"Context history: ")
-            pprint(context_history)
-
-            # Extract the caption from the output and
-            # add to the bottom of the image.
-            add_context_history(
-                img_path=img_path, 
-                context_history=context_history,
-                out_dir=out_dir
-            )
-        else:
-            print("Image not found.")
-
-        return
+        return batch_context_histories
 
     def inference_on_batch_of_images(self, 
                                      dataset_path,
