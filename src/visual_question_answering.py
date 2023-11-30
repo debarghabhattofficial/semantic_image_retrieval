@@ -60,12 +60,15 @@ class VisualQuestionAnswering:
         self.device = device
 
         # Load the model and image processors.
-        self.model, self.vis_processors, self.txt_processors = load_model_and_preprocess(
-            name=self.model_name, 
-            model_type=self.model_type,
-            is_eval=self.is_eval,
-            device=self.device
-        )
+        if "blip2" in self.model_name:
+            self.model, self.vis_processors, self.txt_processors = None, None, None
+        else:
+            self.model, self.vis_processors, self.txt_processors = load_model_and_preprocess(
+                name=self.model_name, 
+                model_type=self.model_type,
+                is_eval=self.is_eval,
+                device=self.device
+            )
 
         self.verbose = verbose
 
@@ -79,17 +82,6 @@ class VisualQuestionAnswering:
         formatted_prompt = f"Question: {qa_pair[0]} " + \
             f"Answer: {qa_pair[1]}"
         return formatted_prompt
-
-    def batch_of_formatted_prompts(self,
-                                   batch_qa_pairs):
-        """
-        This method returns a batch of formatted prompts.
-        """    
-        batch_formatted_prompts = list(map(
-            lambda qa_pair: self.get_formatted_prompt(qa_pair),
-            batch_qa_pairs
-        ))
-        return batch_formatted_prompts
 
     def infer_using_blip(self,
                          img_tensor):
@@ -196,6 +188,63 @@ class VisualQuestionAnswering:
 
         return
 
+    def get_batch_of_formatted_qa_pairs(self,
+                                        batch_qa_pairs):
+        """
+        This method returns a batch of question-asnwer
+        string following a specific format.
+        """ 
+        batch_formatted_qa_pairs = list(map(
+            lambda qa_pair: self.get_formatted_prompt(qa_pair),
+            batch_qa_pairs
+        ))
+        return batch_formatted_qa_pairs
+
+    def get_formatted_context(self,
+                              context_history):
+        """
+        This method returns a formatted context 
+        based on the corresponding prompts from the context
+        history.
+        """
+        formatted_context = " ".join([
+            context
+            for context in context_history
+        ])
+        return formatted_context
+
+    def get_batch_of_formatted_prompts(self,
+                                       batch_cur_ques,
+                                       batch_context_histories):
+        """
+        This method returns a batch of formatted prompts.
+        """
+        # Get the formatted batch of contexts from the
+        # batch of context histories.
+        batch_context_histories = list(map(
+            lambda context_history: self.get_batch_of_formatted_qa_pairs(context_history), 
+            batch_context_histories
+        ))
+        batch_context_histories = list(map(
+            lambda context_history: self.get_formatted_context(context_history),
+            list(zip(*batch_context_histories))
+        ))
+
+        # Get the formatted batch of current questions and
+        # empty answers.
+        batch_cur_ques = self.get_batch_of_formatted_qa_pairs(zip(
+            batch_cur_ques, 
+            self.batch_size * [""]
+        ))
+
+        # Get the formatted batch of prompts.
+        batch_cur_prompts = list(map(
+            lambda x: x[0] + " " + x[1],
+            list(zip(batch_context_histories, batch_cur_ques))
+        ))
+
+        return batch_cur_prompts
+
     def infer_batch_using_blip(self,
                                batch_imgs,
                                questions):
@@ -205,27 +254,13 @@ class VisualQuestionAnswering:
         batch_context_histories = []
         # Generate prompts and asks questions to
         # the model.
-        for cur_ques in questions:
+        for i, cur_ques in enumerate(questions):
             cur_ques = cur_ques.strip().lower()
             batch_cur_ques = self.batch_size * [cur_ques]
-            # print(f"# imgs in batch: {batch_imgs.shape[0]}")
-            # print(f"# ques in batch: {len(batch_cur_ques)}")
-            # cur_prompt = " ".join(
-            #     list(map(
-            #         lambda context: self.get_formatted_prompt(context), 
-            #         context_history
-            #     ))
-            # ) + " " + self.get_formatted_prompt((cur_ques, ""))
-            # print(f"Prompt: {cur_prompt}")
-            # cur_ans = ""
             output = self.model.predict_answers(
                 {"image": batch_imgs, "text_input": batch_cur_ques},
                 inference_method="generate"
             )
-            # print("Answer batch: ")
-            # pprint(output)
-            # print("-" * 75)
-
             batch_context_histories.append(
                 tuple(zip(batch_cur_ques, output))
             )
@@ -241,33 +276,27 @@ class VisualQuestionAnswering:
         batch_context_histories = []
         # Generate prompts and asks questions to
         # the model.
-        for cur_ques in questions:
+        for i, cur_ques in enumerate(questions):
             cur_ques = cur_ques.strip().lower()
             batch_cur_ques = self.batch_size * [cur_ques]
-            batch_cur_prompt = list(map(
-                lambda context: self.get_formatted_prompt(batch_context), 
-                batch_context_histories
-            ))
-            print(f"batch_cur_prompt: \n{batch_cur_prompt}")
-            print("-" * 75)
-            return
-            # print(f"# imgs in batch: {batch_imgs.shape[0]}")
-            # print(f"# ques in batch: {len(batch_cur_ques)}")
-            # cur_prompt = " ".join(
-            #     list(map(
-            #         lambda context: self.get_formatted_prompt(context), 
-            #         context_history
-            #     ))
-            # ) + " " + self.get_formatted_prompt((cur_ques, ""))
-            # print(f"Prompt: {cur_prompt}")
-            # cur_ans = ""
-            output = self.model.predict_answers(
-                {"image": batch_imgs, "text_input": batch_cur_ques},
-                inference_method="generate"
-            )
-            # print("Answer batch: ")
-            # pprint(output)
-            # print("-" * 75)
+
+            batch_cur_prompts = None
+            if i == 0:
+                batch_cur_prompts = self.get_batch_of_formatted_qa_pairs(zip(
+                    batch_cur_ques, 
+                    self.batch_size * [""]
+                ))
+            else:
+                batch_cur_prompts = self.get_batch_of_formatted_prompts(
+                    batch_cur_ques=batch_cur_ques,
+                    batch_context_histories=batch_context_histories
+                )
+
+            # output = self.model.predict_answers(
+            #     {"image": batch_imgs, "text_input": batch_cur_ques},
+            #     inference_method="generate"
+            # )
+            output = self.batch_size * ["test_ans"]
 
             batch_context_histories.append(
                 tuple(zip(batch_cur_ques, output))
@@ -282,9 +311,8 @@ class VisualQuestionAnswering:
         """
         This method performs inference on a batch 
         of images.
-        TODO: Implement this method later. This might
-        not be even required for the task of vqa where
-        we generally focus on a single image.
+        TODO: Check if the batch inference method
+        works for the BLIP-2 model.
         """
         # Load the dataset.
         dataset = load_dataset(
@@ -303,14 +331,7 @@ class VisualQuestionAnswering:
         # Load the question set.
         ques_set = load_question_set(question_path)
         num_ques = ques_set["num_questions"]
-        # print(f"num_ques type: {type(num_ques)}")
-        # print(f"num_ques: {num_ques}")
-        # print("-" * 75)
         questions = ques_set["questions"]
-        # print(f"questions type: {type(questions)}")
-        # print(f"questions: ")
-        # pprint(questions)
-        # print("-" * 75)
 
         # Iterate over batches of data.
         for batch_num, (batch_imgs, batch_lbls) in enumerate(tqdm(data_loader, unit="batch")):
@@ -321,19 +342,21 @@ class VisualQuestionAnswering:
             # generate the batch of context histories.
             batch_context_histories = None
             if "blip2" not in self.model_name:
+                # print("Using BLIP model.")
                 batch_context_histories = self.infer_batch_using_blip(
                     batch_imgs=batch_imgs,
                     questions=questions
                 )
             elif "blip2" in self.model_name:
+                # print("Using BLIP-2 model.")
                 batch_context_histories = self.infer_batch_using_blip2(
                     batch_imgs=batch_imgs,
                     questions=questions
                 )
             batch_context_histories = list(zip(*batch_context_histories))
-            # print("batch_context_histories: ")
-            # pprint(batch_context_histories)
-            # print("-" * 75)
+            print("batch_context_histories: ")
+            pprint(batch_context_histories)
+            print("-" * 75)
 
             # Iterate over individual images in the batch.
             for lbl_num in range(len(batch_lbls)):
