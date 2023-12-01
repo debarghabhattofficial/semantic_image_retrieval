@@ -60,15 +60,12 @@ class VisualQuestionAnswering:
         self.device = device
 
         # Load the model and image processors.
-        if "blip2" in self.model_name:
-            self.model, self.vis_processors, self.txt_processors = None, None, None
-        else:
-            self.model, self.vis_processors, self.txt_processors = load_model_and_preprocess(
-                name=self.model_name, 
-                model_type=self.model_type,
-                is_eval=self.is_eval,
-                device=self.device
-            )
+        self.model, self.vis_processors, self.txt_processors = load_model_and_preprocess(
+            name=self.model_name, 
+            model_type=self.model_type,
+            is_eval=self.is_eval,
+            device=self.device
+        )
 
         self.verbose = verbose
 
