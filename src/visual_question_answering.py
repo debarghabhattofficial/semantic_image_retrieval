@@ -264,6 +264,19 @@ class VisualQuestionAnswering:
                 
         return batch_context_histories
 
+    def ask_blip2(self, img_tensor, prompt):
+        """
+        This method asks a question to the BLIP-2 model.
+        """
+        img_tensor = img_tensor.unsqueeze(0)
+        output = self.model.generate(
+            {"image": img_tensor, "prompt": prompt},
+        )
+        print(f"prompt: \n{prompt}")
+        print(f"answer: {output[0]}")
+        print("-" * 75)
+        return output[0]
+
     def infer_batch_using_blip2(self,
                                 batch_imgs,
                                 questions):
@@ -289,11 +302,35 @@ class VisualQuestionAnswering:
                     batch_context_histories=batch_context_histories
                 )
 
-            # output = self.model.predict_answers(
-            #     {"image": batch_imgs, "text_input": batch_cur_ques},
-            #     inference_method="generate"
-            # )
-            output = self.batch_size * ["test_ans"]
+            # batch_imgs = batch_imgs.tolist()
+            # print(f"batch_imgs shape: {len(batch_imgs)}")
+            # print(f"batch_cur_prompts: {len(batch_cur_prompts)}")
+            # print("batch_cur_prompts: ")
+            # pprint(batch_cur_prompts)
+            # print("-" * 75)
+
+            # for img, prompt in zip(batch_imgs, batch_cur_prompts):
+            #     print(f"img shape: {img.unsqueeze(0).shape}")
+            #     print(f"prompt: {prompt}")
+            #     print("-" * 75)
+            # quit()
+
+            output = list(map(
+                lambda x: self.ask_blip2(x[0], x[1]),
+                zip(batch_imgs, batch_cur_prompts)
+            ))
+
+            # output = list(map(
+            #     lambda x: self.model.generate(
+            #         {"image": x[0].unsqueeze(0), "prompt": x[1]}
+            #     )[0],
+            #     zip(batch_imgs, batch_cur_prompts)
+            # ))
+            print(f"output: ")
+            pprint(output)
+            print("=" * 75)
+            print("\n")
+            # output = self.batch_size * ["test_ans"]
 
             batch_context_histories.append(
                 tuple(zip(batch_cur_ques, output))
@@ -354,6 +391,7 @@ class VisualQuestionAnswering:
             print("batch_context_histories: ")
             pprint(batch_context_histories)
             print("-" * 75)
+            quit()
 
             # Iterate over individual images in the batch.
             for lbl_num in range(len(batch_lbls)):
