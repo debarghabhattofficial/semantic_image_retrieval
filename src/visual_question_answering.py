@@ -5,7 +5,11 @@ from pprint import pprint
 
 import torch
 from torch.utils.data import DataLoader
+from torch.multiprocessing import Pool
+from torch.multiprocessing import spawn, Process, set_start_method
 from lavis.models import load_model_and_preprocess
+
+from concurrent.futures import ThreadPoolExecutor
 
 from utils.utils import read_image
 from utils.utils import load_dataset, load_question_set
@@ -58,6 +62,7 @@ class VisualQuestionAnswering:
         self.is_eval = is_eval
         self.batch_size = batch_size
         self.device = device
+        self.num_threads = torch.multiprocessing.cpu_count()
 
         # Load the model and image processors.
         self.model, self.vis_processors, self.txt_processors = load_model_and_preprocess(
@@ -264,17 +269,18 @@ class VisualQuestionAnswering:
                 
         return batch_context_histories
 
-    def ask_blip2(self, img_tensor, prompt):
+    def ask_blip2(self, input_data):
         """
         This method asks a question to the BLIP-2 model.
         """
+        img_tensor, prompt = input_data
         img_tensor = img_tensor.unsqueeze(0)
         output = self.model.generate(
             {"image": img_tensor, "prompt": prompt},
         )
-        print(f"prompt: \n{prompt}")
-        print(f"answer: {output[0]}")
-        print("-" * 75)
+        # print(f"prompt: \n{prompt}")
+        # print(f"answer: {output[0]}")
+        # print("-" * 75)
         return output[0]
 
     def infer_batch_using_blip2(self,
@@ -315,10 +321,46 @@ class VisualQuestionAnswering:
             #     print("-" * 75)
             # quit()
 
-            output = list(map(
-                lambda x: self.ask_blip2(x[0], x[1]),
-                zip(batch_imgs, batch_cur_prompts)
-            ))
+            # output = list(map(
+            #     lambda x: self.ask_blip2(x[0], x[1]),
+            #     list(zip(batch_imgs, batch_cur_prompts))
+            # ))
+            output = []
+            for _, (img, cur_prompt) in enumerate(zip(batch_imgs, batch_cur_prompts)):
+                img = img.unsqueeze(0)
+                output_ = self.model.generate(
+                    {"image": img, "prompt": cur_prompt},
+                )[0]
+                # output_ = "no idea."
+                # if i == 0:
+                #     img = img.unsqueeze(0)
+                #     output_ = self.model.generate(
+                #         {"image": img, "prompt": cur_prompt},
+                #     )[0]
+                print(f"TEMP ANSWER1: {output_}")
+
+                print(f"Is the output_ == ''? (T/F): {output_ == ''}")
+                print(f"Is the output_[-1] == '.'? (T/F): {output_[-1] == '.'}")
+                print("-" * 75)
+
+                if (output_ == "") or (output_[-1] != "."):
+                    print(f"TEMP ANSWER2: {output_}")
+                    output_ += "."
+                output.append(output_)
+                print(f"PROMPT: \n{cur_prompt}")
+                print(f"ANSWER: {output_}")
+                print("-" * 75)
+            # Perform inference in parallel using ThreadPoolExecutor
+            # with ThreadPoolExecutor(max_workers=self.num_threads) as executor:
+            #     output = list(executor.map(
+            #         self.ask_blip2, 
+            #         list(zip(batch_imgs, batch_cur_prompts))
+            #     ))
+            # with Pool(processes=self.num_processes) as pool:
+            #     output = pool.map(
+            #         self.ask_blip2, 
+            #         list(zip(batch_imgs, batch_cur_prompts))
+            #     )
 
             # output = list(map(
             #     lambda x: self.model.generate(
@@ -366,6 +408,9 @@ class VisualQuestionAnswering:
         ques_set = load_question_set(question_path)
         num_ques = ques_set["num_questions"]
         questions = ques_set["questions"]
+        print(f"Following are the loaded questions: ")
+        pprint(questions)
+        print("-" * 75)
 
         # Iterate over batches of data.
         for batch_num, (batch_imgs, batch_lbls) in enumerate(tqdm(data_loader, unit="batch")):
@@ -376,13 +421,13 @@ class VisualQuestionAnswering:
             # generate the batch of context histories.
             batch_context_histories = None
             if "blip2" not in self.model_name:
-                # print("Using BLIP model.")
+                print("Using BLIP model.")
                 batch_context_histories = self.infer_batch_using_blip(
                     batch_imgs=batch_imgs,
                     questions=questions
                 )
             elif "blip2" in self.model_name:
-                # print("Using BLIP-2 model.")
+                print("Using BLIP-2 model.")
                 batch_context_histories = self.infer_batch_using_blip2(
                     batch_imgs=batch_imgs,
                     questions=questions
