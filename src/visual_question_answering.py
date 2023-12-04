@@ -2,6 +2,7 @@ import os
 import argparse
 from tqdm import tqdm
 from pprint import pprint
+import re
 
 import torch
 from torch.utils.data import DataLoader
@@ -120,31 +121,55 @@ class VisualQuestionAnswering:
                 
         return context_history
 
+    def is_alphanumeric_answer(self, answer):
+        # Define a regular expression pattern for words 
+        # containing alphabets and digits.
+        pattern = re.compile(r"^[a-zA-Z0-9\s]+$")
+
+        # Use the pattern to match the generated answer.
+        match = pattern.match(answer)
+
+        # If there's a match, the string is made only 
+        # of words with alphabets and digits.
+        return bool(match)
+
     def infer_using_blip2(self,
                           img_tensor):
         """
         This method runs inference using the BLIP-2 model.
         """
         context_history = []
+        cur_context_history = []
         # Generate prompts and asks questions to
         # the model.
+        output = None
         while True:
             cur_ques = input("Enter question: ")
             cur_ques = str(cur_ques).strip().lower()
-            cur_prompt = " ".join(
-                list(map(
-                    lambda context: self.get_formatted_prompt(context), 
-                    context_history
-                ))
-            ) + " " + self.get_formatted_prompt((cur_ques, ""))
+            cur_prompt = None
+            if (output is None) or (not self.is_alphanumeric_answer(output[:-1])):
+                cur_prompt = self.get_formatted_prompt((cur_ques, ""))
+                context_history.extend(cur_context_history)
+                cur_context_history = []
+            else:
+                cur_prompt = " ".join(
+                    list(map(
+                        lambda context: self.get_formatted_prompt(context), 
+                        cur_context_history
+                    ))
+                ) + " " + self.get_formatted_prompt((cur_ques, ""))
             print(f"Prompt: {cur_prompt}")
             cur_ans = ""
             output = self.model.generate(
                 {"image": img_tensor, "prompt": cur_prompt},
-            )
-            cur_ans = output[0]
+            )[0]
+            if (output == "") or (output[-1] != "."):
+                print(f"output: {output}")
+                output += "."
+                print(f"output: {output}")
+            cur_ans = output
             print(f"Answer: {cur_ans}")
-            context_history.append((cur_ques, cur_ans))
+            cur_context_history.append((cur_ques, cur_ans))
             cnt_msg = "Press 'N' to abort, " + \
                 "or any other key to ask another question: "
             cnt = input(cnt_msg)
@@ -152,6 +177,7 @@ class VisualQuestionAnswering:
             if (cnt == "N") or (cnt == "n"):
                 break
                 
+        context_history.extend(cur_context_history)
         return context_history  
 
     def inference_on_single_image(self, 
