@@ -1,4 +1,4 @@
-"num_questions" : 13
+"num_questions" : 12
 "questions" :
     - "what is this image?"
     - "is this a day scene or a night scene?"
@@ -8,8 +8,11 @@
     - "is this a city scene or a rural scene?"
     - "is this a vineyard?"
     - "is this a dairy farm?"
-    - "how many rows of plants are there in the image?"
     - "is there any row of plants on the left side?"
     - "is there any row of plants on the right side?"
     - "is the left row of plants longer than the right row of plants?"
     - "is the right row of plants longer than the left row of plants?"
+
+# Additional question which gave erroneous output when asked to
+# the BLIP-2 model:
+# "how many rows of plants are there in the image?"
