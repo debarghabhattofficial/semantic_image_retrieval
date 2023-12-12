@@ -10,5 +10,5 @@
 python download_data.py \
     --resource "s3" \
     --bucket_name "sg-fleet-usage" \
-    --folder_prefix "camera-clarity-dataset" \
-    --local_directory "/media/dbhattacharjee/Deb/projects/semantic_image_retrieval/input_files"
+    --folder_prefix "image_retrieval_system" \
+    --local_directory "../input_files"
