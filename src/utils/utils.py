@@ -1,4 +1,5 @@
 import os
+import pickle
 
 from torchvision import transforms, datasets
 
@@ -6,40 +7,33 @@ from PIL import Image, ImageDraw, ImageFont
 import textwrap
 
 
-def read_image(img_path, input_size=(384, 384)):
-    # Read the image.
-    img_pil = Image.open(img_path)
+def read_images(unit="single",
+                img_path=None,
+                batch_size=None):
+    """
+    This method:
+        1. Reads an image from the given path if unit is "single".
+        2. Creates a custom dataset from a give directory if unit is "batch".
+    """
+    img_pil = None
+    img_dataset = None
+    if unit == "single":
+        # Read the image.
+        img_pil = Image.open(img_path)
+    elif unit == "batch":
+        # Define a transform to convert to PIL image.
+        transform = transforms.Compose([  
+            transforms.Resize((480, 480)),
+            transforms.ToTensor(),
+        ])
+        # Create a custom dataset of images.
+        img_dataset = datasets.ImageFolder(
+            root=img_path,
+            transform=transform
+        )
 
-    # Define a transform to convert the image to tensor.
-    # TODO: Input image size for BLIP model is 384 x 384.
-    # Verify after reading about it from the research paper.
-    transform = transforms.Compose([
-        transforms.Resize(input_size),  
-        transforms.ToTensor(),
-    ])
-
-    # Convert the image to PyTorch tensor.
-    img_tensor = transform(img_pil).unsqueeze(0)
-
-    return img_tensor
-
-
-def load_dataset(dataset_path, 
-                 batch_size,
-                 input_size=(384, 384)):
-    # Define the transformation to be applied to each image
-    transform = transforms.Compose([
-        transforms.Resize(input_size),  # Resize the image.
-        transforms.ToTensor(),  # Convert the image to a tensor.
-    ])
-
-    # Create a custom dataset.
-    custom_dataset = datasets.ImageFolder(
-        root=dataset_path, 
-        transform=transform
-    )
-
-    return custom_dataset
+    # Return image or dataset.
+    return img_pil if unit == "single" else img_dataset
 
 
 def add_caption(img_path, 
@@ -111,3 +105,40 @@ def add_caption(img_path,
         canvas.save(out_path)
 
     return
+
+
+def save_pickle_data(data, file_name, directory, label=None):
+    "This method saves the data as a pickle file."
+    # Create output directory (if doesn't exist).
+    if not os.path.isdir(directory):
+        os.makedirs(directory)
+
+    # Save the data as a pickle with given file_name.
+    path = os.path.join(directory, file_name)
+    with open(path, "wb") as file:
+        # A new file will be created
+        pickle.dump(data, file)
+
+    if label is None:
+        print(f"Saved data as a pickle file at: {path}")
+    else:
+        print(f"Saved {label} as a pickle file at: {path}")
+
+    return
+
+
+def load_pickle_data(path, label=None):
+    "This method loads pickled data from given path."
+    data = None
+
+    # Load pickled data from given path (if it exists).
+    if os.path.exists(path):
+        with open(path, "rb") as file:
+            data = pickle.load(file)
+
+        if label is None:
+            print(f"Loaded pickled data from: {path}")
+        else:
+            print(f"Loaded pickled {label} from: {path}")
+
+    return data

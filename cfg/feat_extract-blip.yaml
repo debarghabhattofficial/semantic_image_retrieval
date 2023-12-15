@@ -1,0 +1,6 @@
+"batch_size" : 32
+"model" :
+    "name" : "blip_feature_extractor"
+    "type" : "base"
+    "input_size" : [384, 384]
+    "is_eval" : True
