@@ -5,6 +5,13 @@ from pprint import pprint
 
 import numpy as np
 from PIL import Image as PilImage
+from sklearn.manifold import TSNE
+from sklearn.decomposition import PCA
+
+import pandas as pd
+import matplotlib.pyplot as plt
+from matplotlib.colors import ListedColormap
+import seaborn as sns
 
 import torch
 from torch_scatter import scatter_sum, scatter_mean
@@ -65,6 +72,76 @@ class FeatureExtractor:
 
         return in_img, in_text
 
+    def visualise_using_pca(self,
+                            feat_embeds,
+                            class_labels,
+                            class_stats=None,
+                            plot_dir=None,
+                            save_plots=False):
+        """
+        This method visualises the feature embeddings
+        using PCA.
+        """
+
+        # Flatten the 2D feature embeddings.
+        feat_embeds = feat_embeds.flatten(start_dim=1)
+
+        # Use PCA to reduce the dimensionality of the
+        # feature embeddings.
+        pca_reduce = PCA(n_components=2)
+        feat_embeds = pca_reduce.fit_transform(feat_embeds)
+
+        df = pd.DataFrame()
+        df["label"] = class_labels
+        df["x1"] = feat_embeds[:, 0]
+        df["x2"] = feat_embeds[:, 1]
+
+        # Visualize the feature embeddings.
+        sns.scatterplot(
+            data=df, 
+            x="x1", 
+            y="x2", 
+            hue="label", 
+            palette=sns.color_palette("muted"),
+            legend="full"
+        )
+        
+        if class_stats is not None:
+            # Visualize the class centroids.
+            tab10_colors = plt.cm.tab10.colors
+            tab10_cmap = ListedColormap(tab10_colors)
+            for k, (lbl, (lbl_counts, lbl_centroid)) in enumerate(class_stats.items()):
+                lbl_centroid = pca_reduce.transform(
+                    lbl_centroid.unsqueeze(0).flatten(start_dim=1).cpu()
+                )
+                plt.scatter(
+                    x=lbl_centroid[:, 0],
+                    y=lbl_centroid[:, 1],
+                    c=[tab10_cmap(k)],
+                    marker="^",
+                    s=100,
+                    label=lbl
+                )
+                plt.annotate(
+                    text=lbl,
+                    xy=(lbl_centroid[:, 0], lbl_centroid[:, 1]),
+                    xytext=(lbl_centroid[:, 0] + 0.5, lbl_centroid[:, 1] + 0.5),
+                )
+
+        plt.tight_layout()
+        if save_plots and (plot_dir is not None):
+            plt_dir, plt_name = os.path.split(plot_dir)
+            if os.path.isdir(plt_dir) == False:
+                os.makedirs(plt_dir, exist_ok=True)
+            plt_file_name = os.path.join(
+                plt_dir, f"{plt_name}.png"
+            )
+            plt.savefig(plt_file_name)
+        plt.show()
+        plt.close()
+
+        return
+
     def preprocess_batch_of_inputs(self, img_batch, text_batch):
         """
         This method preprocesses the input image batch 
@@ -85,10 +162,12 @@ class FeatureExtractor:
 
         return img_batch, text_batch
 
-    def extract_from_single_input(self, 
-                                  img_path,
-                                  in_text,
-                                  out_dir):
+    def infer_single_input(self, 
+                           img_path,
+                           in_text="",
+                           project_lower=False,
+                           out_dir=None,
+                           save_embeds=False):
         """
         This method extract featurws from a single input.
         """
@@ -105,23 +184,21 @@ class FeatureExtractor:
                 in_text=in_text
             )
             sample = {"image": in_img, "text_input": in_text}
-            print("sample: ")
-            pprint(sample)
-            print("-" * 75)
 
             # Extract image features.
             img_feats = self.model.extract_features(sample, mode="image")
-            print(f"img_feats.image_embeds shape: {img_feats.image_embeds.shape}")
-            print(f"img_feats.image_embeds): \n{img_feats.image_embeds}")
-            print("-" * 75)
+            if project_lower:
+                img_feats = img_feats.image_embeds_proj
+            else:
+                img_feats = img_feats.image_embeds
 
-            if False:
-                # Extract the caption from the output and
-                # add to the bottom of the image.
-                add_caption(
-                    img_path=img_path, 
-                    caption_text=output[0],
-                    out_dir=out_dir
+            # Save class-level statistics as pickle file.
+            if (save_embeds == True) and (out_dir is not None):
+                save_pickle_data(
+                    data=img_feats.cpu().numpy(),
+                    file_name="image_embeds.pkl",
+                    directory=out_dir,
+                    label="image embeddings"
                 )
         else:
             print("Image not found.")
@@ -137,7 +214,9 @@ class FeatureExtractor:
         This method updates the centroid of a cluster.
         """
         updated_counts = prev_counts + new_counts
-        updated_centroid = ((prev_counts * prev_centroid) + (new_counts * new_centroid)) / (prev_counts + new_counts)
+        updated_centroid = (
+            (prev_counts * prev_centroid) + (new_counts * new_centroid)
+        ) / updated_counts
         return (updated_counts, updated_centroid)
 
     def update_class_stats(self,
@@ -161,9 +240,15 @@ class FeatureExtractor:
 
         return class_stats
 
-    def extract_from_batch_of_inputs(self, 
-                                     img_path,
-                                     out_dir):
+    def infer_batch_of_inputs(self, 
+                              img_path,
+                              project_lower=False,
+                              compute_centroids=False,
+                              out_dir=None,
+                              plot_dir=None,
+                              vis_pca=False,
+                              save_embeds=False,
+                              save_plots=False):
         """
         This method performs inference on a batch 
         of images.
@@ -184,12 +269,12 @@ class FeatureExtractor:
 
         # Dictionary to store class-level statistics.
         class_stats = {}  # Keys: Class labels, Values: (Label counts, Centroids).
+        if vis_pca:
+            data_points_embeds = []
+            data_points_labels = []
+
         # Iterate over batches of data.
         for batch_num, (batch_imgs, batch_lbls) in enumerate(tqdm(data_loader, unit="batch")):
-            print(f"class_stats (BEFORE): ")
-            pprint(class_stats)
-            print("-" * 75)
-
             batch_lbls = batch_lbls.to(self.device)
 
             # Preprocess image and text inputs.
@@ -202,52 +287,86 @@ class FeatureExtractor:
 
             # Extract image features.
             img_feats = self.model.extract_features(sample, mode="image")
+            if project_lower:
+                img_feats = img_feats.image_embeds_proj
+            else:
+                img_feats = img_feats.image_embeds
+            
+            if vis_pca:
+                data_points_embeds.extend(img_feats.cpu())
+                data_points_labels.extend(batch_lbls.cpu())
 
-            # Compute batch-level statistics.
-            # Compute class label counts for current batch.
-            lbl_counts = scatter_sum(
-                src=torch.ones_like(batch_lbls),
-                index=batch_lbls,
-                dim=0
-            )
-            # Compute class centroids for current batch.
-            batch_centroid = scatter_mean(
-                src=img_feats.image_embeds, 
-                index=batch_lbls, 
-                dim=0
-            )
-            # Combine to form batch-level statistics.
-            batch_stats = list(zip(
-                lbl_counts.cpu().numpy(), 
-                batch_centroid.cpu().numpy()
-            ))
+            if compute_centroids:
+                # Compute batch-level statistics (class centroids, class counts).
+                # Compute class label counts for current batch.
+                lbl_counts = scatter_sum(
+                    src=torch.ones_like(batch_lbls),
+                    index=batch_lbls,
+                    dim=0
+                )
+                # Compute class centroids for current batch.
+                batch_centroid = scatter_mean(
+                    src=img_feats, 
+                    index=batch_lbls, 
+                    dim=0
+                )
+                # Combine to form batch-level statistics.
+                batch_stats = list(zip(
+                    lbl_counts.cpu(),
+                    batch_centroid.cpu()
+                ))
+                # Update class-level statistics.
+                class_stats = self.update_class_stats(
+                    class_stats=class_stats,
+                    batch_stats=batch_stats
+                )
 
-            # Update class-level statistics.
-            class_stats = self.update_class_stats(
+        if compute_centroids:
+            # Update class-level statistics's keys to respective 
+            # class labels for saving as pickle file.
+            class_stats = {
+                dataset.classes[k]: v
+                for k, v in class_stats.items()
+            }
+
+            # Save class-level statistics as pickle file.
+            if (save_embeds == True) and (out_dir is not None):
+                save_pickle_data(
+                    data=class_stats,
+                    file_name="class_stats.pkl",
+                    directory=out_dir,
+                    label="class-level statistics"
+                )
+
+        if vis_pca:
+            data_points_embeds = torch.stack(data_points_embeds, dim=0)
+            data_points_labels = torch.stack(
+                data_points_labels, dim=0
+            ).cpu().numpy()
+            data_points_labels = [
+                dataset.classes[lbl]
+                for lbl in data_points_labels
+            ]
+            self.visualise_using_pca(
+                feat_embeds=data_points_embeds,
+                class_labels=data_points_labels,
                 class_stats=class_stats,
-                batch_stats=batch_stats
+                plot_dir=plot_dir,
+                save_plots=save_plots
             )
-            print(f"class_stats (AFTER): ")
-            pprint(class_stats)
-            print("=" * 75)
 
-        # Update class-level statistics's keys to respective 
-        # class labels for saving as pickle file.
-        class_stats = {
-            dataset.classes[k]: v
-            for k, v in class_stats.items()
-        }
-        print(f"class_stats: ")
-        pprint(class_stats)
-        print("-" * 75)
-
-        # Save class-level statistics as pickle file.
-        if False:
-            save_pickle_file(
-                data=class_stats,
-                file_name="class_stats.pkl",
+         # Save feature embeddings and class labels of 
+         # the different data points as pickle file.
+        if (save_embeds == True) and (out_dir is not None):
+            data_point_stats = {
+                "embeds": data_points_embeds.cpu().numpy(),
+                "labels": data_points_labels
+            }
+            save_pickle_data(
+                data=data_point_stats,
+                file_name="data_point_stats.pkl",
                 directory=out_dir,
-                label="class-level statistics"
+                label="data point statistics"
             )
 
         return
