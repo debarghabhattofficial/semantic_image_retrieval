@@ -17,10 +17,8 @@ import torch
 from torch_scatter import scatter_sum, scatter_mean
 from torch.utils.data import DataLoader
 from torchvision.transforms import ToPILImage
-from torchsummary import summary
 
 from lavis.models import load_model_and_preprocess
-from lavis.models.blip_models.blip_image_text_matching import compute_gradcam
 
 from utils.utils import read_images, load_pickle_data, save_pickle_data
 
