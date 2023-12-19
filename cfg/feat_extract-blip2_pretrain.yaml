@@ -1,0 +1,6 @@
+"batch_size" : 32
+"model" :
+    "name" : "blip2"
+    "type" : "pretrain"
+    "input_size" : [384, 384]
+    "is_eval" : True

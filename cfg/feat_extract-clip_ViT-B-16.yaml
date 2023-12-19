@@ -1,0 +1,6 @@
+"batch_size" : 32
+"model" :
+    "name" : "clip_feature_extractor"
+    "type" : "ViT-B-16"
+    "input_size" : [384, 384]
+    "is_eval" : True
