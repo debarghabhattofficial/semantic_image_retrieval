@@ -126,7 +126,7 @@ class FeatureExtractor:
                 plt.annotate(
                     text=lbl,
                     xy=(lbl_centroid[:, 0], lbl_centroid[:, 1]),
-                    xytext=(lbl_centroid[:, 0] + 0.5, lbl_centroid[:, 1] + 0.5),
+                    xytext=(lbl_centroid[:, 0] + 0.1, lbl_centroid[:, 1] + 0.1),
                 )
 
         plt.tight_layout()
