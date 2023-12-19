@@ -284,7 +284,12 @@ class FeatureExtractor:
             sample = {"image": batch_imgs, "text_input": batch_texts}
 
             # Extract image features.
-            img_feats = self.model.extract_features(sample, mode="image")
+            img_feats = None
+            if "clip" in self.model_name:
+                with torch.no_grad():
+                    img_feats = self.model.extract_features(sample)
+            else:
+                img_feats = self.model.extract_features(sample, mode="image")
             if project_lower:
                 img_feats = img_feats.image_embeds_proj
             else:
