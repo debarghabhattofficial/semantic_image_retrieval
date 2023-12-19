@@ -3,9 +3,16 @@
 cd "../src"
 
 python test.py \
-    --cfg_path "../cfg/image_captioning.yaml" \
-    --dataset_path "../input_images/test_dataset" \
+    --cfg_path "../cfg/feat_extract-blip.yaml" \
+    --dataset_path "../input_images/auto_image_labelling/bushy-patchy" \
     --img_path "../input_images/test_sample_1.jpg" \
-    --out_dir "../results/image_captioning/blip/test_dataset" \
+    --text_input "a woman in a bathing suit holding a pink umbrella" \
+    --out_dir "../results/auto_image_labelling/blip/bushy-patchy" \
+    --plot_dir "../plots/auto_image_labelling/blip/bushy-patchy" \
     --infer_batch \
+    --project_lower \
+    --compute_centroids \
+    --vis_pca \
+    --save_plots \
+    --save_embeds \
     --verbose
