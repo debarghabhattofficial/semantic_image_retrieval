@@ -95,6 +95,9 @@ class FeatureExtractor:
         df["x2"] = feat_embeds[:, 1]
 
         # Visualize the feature embeddings.
+        fig, ax = plt.subplots(nrows=1, ncols=1)
+        fig.set_size_inches(w=8, h=8)
+
         sns.scatterplot(
             data=df, 
             x="x1", 
