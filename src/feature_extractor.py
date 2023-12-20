@@ -5,8 +5,8 @@ from pprint import pprint
 
 import numpy as np
 from PIL import Image as PilImage
-from sklearn.manifold import TSNE
 from sklearn.decomposition import PCA
+from sklearn.metrics import classification_report
 
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -254,11 +254,15 @@ class FeatureExtractor:
                               compute_similarity=False,
                               save_embeds=False,
                               save_plots=False,
-                              save_sim_scores=False):
+                              save_sim_scores=False,
+                              save_class_report=False):
         """
         This method performs inference on a batch 
         of images.
         """
+        # Sort the input text labels in ascending order.
+        in_text.sort()
+        
         # Load the dataset.
         dataset = read_images(
             unit="batch",
@@ -423,7 +427,7 @@ class FeatureExtractor:
             )
 
         # Save similarity scores and class probabilities of 
-         # the different data points as pickle file.
+        # the different data points as pickle file.
         if (save_sim_scores == True) and (out_dir is not None):
             # Compute average similarity and probability scores 
             # across all data points.
@@ -454,7 +458,7 @@ class FeatureExtractor:
                 "class_probs": data_points_class_probs,
                 "avg_sim_scores": avg_sim_scores,
                 "avg_class_probs": avg_class_probs,
-                "labels": [dataset.classes[lbl_idx] for lbl_idx in range(len(in_text))]
+                "labels": dataset.classes
             }
             save_pickle_data(
                 data=data_point_stats2,
@@ -463,4 +467,26 @@ class FeatureExtractor:
                 label="data point similarity and probability scores"
             )
 
+        # Save class-wise classification report as a pickle file.
+        if (save_class_report == True) and (out_dir is not None):
+            # Generate classification report.
+            y_pred = np.argmax(data_points_class_probs, axis=1)
+            print(f"y_pred: \n{y_pred}")
+            print(f"y_true: \n{data_points_labels}")
+            class_report = classification_report(
+                y_true=data_points_labels, 
+                y_pred=y_pred,
+                target_names=dataset.classes,
+                output_dict=True
+            )
+            print(f"class_report")
+            pprint(class_report)
+            print("-" * 75)
+            # Save class report.
+            save_pickle_data(
+                data=class_report,
+                file_name="classification_report.pkl",
+                directory=out_dir,
+                label="classification report"
+            )
         return

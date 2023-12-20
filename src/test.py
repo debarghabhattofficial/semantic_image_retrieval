@@ -95,6 +95,13 @@ def parse_args():
             "(with temp.= 0.01) scores of input data points."
     )
     parser.add_argument(
+        "--save_class_report", 
+        action="store_true",
+        help="Use to save classification report (based on " + \
+            "computed class probabilities based on the " + \
+            "similarity scores) as a dictionary."
+    )
+    parser.add_argument(
         "--verbose", 
         action="store_true",
         help="Use to print intermediate output for " + \
@@ -151,7 +158,8 @@ def main():
             compute_similarity=args.compute_similarity,
             save_embeds=args.save_embeds,
             save_plots=args.save_plots,
-            save_sim_scores=args.save_sim_scores
+            save_sim_scores=args.save_sim_scores,
+            save_class_report=args.save_class_report
         )
 
     return
