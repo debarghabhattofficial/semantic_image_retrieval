@@ -143,23 +143,25 @@ class FeatureExtractor:
 
         return
 
-    def preprocess_batch_of_inputs(self, img_batch, text_batch):
+    def preprocess_batch_of_inputs(self, img_batch=None, text_batch=None):
         """
         This method preprocesses the input image batch 
         and input text batch.
         """
-        to_pil_transform = ToPILImage()
         # Preprocess input image and return tensor.
-        img_batch = torch.stack([
-            self.vis_processors["eval"](to_pil_transform(in_img))
-            for in_img in img_batch
-        ]).to(self.device)
+        if img_batch is not None:
+            to_pil_transform = ToPILImage()
+            img_batch = torch.stack([
+                self.vis_processors["eval"](to_pil_transform(in_img))
+                for in_img in img_batch
+            ]).to(self.device)
 
         # Preprocess input text and return tensor.
-        text_batch = [
-            self.txt_processors["eval"](in_text)
-            for in_text in text_batch
-        ]
+        if text_batch is not None:
+            text_batch = [
+                self.txt_processors["eval"](in_text)
+                for in_text in text_batch
+            ]
 
         return img_batch, text_batch
 
@@ -243,13 +245,16 @@ class FeatureExtractor:
 
     def infer_batch_of_inputs(self, 
                               img_path,
+                              in_text=None,
                               project_lower=False,
                               compute_centroids=False,
                               out_dir=None,
                               plot_dir=None,
                               vis_pca=False,
+                              compute_similarity=False,
                               save_embeds=False,
-                              save_plots=False):
+                              save_plots=False,
+                              save_sim_scores=False):
         """
         This method performs inference on a batch 
         of images.
@@ -270,9 +275,14 @@ class FeatureExtractor:
 
         # Dictionary to store class-level statistics.
         class_stats = {}  # Keys: Class labels, Values: (Label counts, Centroids).
+        
+        # List to store other data point-level statistics.
+        data_points_labels = []
         if vis_pca:
             data_points_embeds = []
-            data_points_labels = []
+        if compute_similarity:
+            data_points_sim_scores = []
+            data_points_class_probs = []
 
         # Iterate over batches of data.
         for batch_num, (batch_imgs, batch_lbls) in enumerate(tqdm(data_loader, unit="batch")):
@@ -298,9 +308,10 @@ class FeatureExtractor:
             else:
                 img_feats = img_feats.image_embeds
             
+            data_points_labels.extend(batch_lbls.cpu())
+
             if vis_pca:
                 data_points_embeds.extend(img_feats.cpu())
-                data_points_labels.extend(batch_lbls.cpu())
 
             if compute_centroids:
                 # Compute batch-level statistics (class centroids, class counts).
@@ -327,6 +338,41 @@ class FeatureExtractor:
                     batch_stats=batch_stats
                 )
 
+            text_feats = None
+            if compute_similarity and (in_text is not None):
+                batch_imgs = batch_imgs.repeat_interleave(
+                    len(in_text), dim=0
+                )
+                img_feats = img_feats.repeat_interleave(
+                    len(in_text), dim=0
+                )
+
+                batch_texts = in_text * min(self.batch_size, batch_lbls.shape[0])
+                _, batch_txts = self.preprocess_batch_of_inputs(
+                    text_batch=batch_texts,
+                )
+                sample = {"image": batch_imgs, "text_input": batch_texts}
+
+                # Extract text features.
+                if "clip" in self.model_name:
+                    with torch.no_grad():
+                        text_feats = self.model.extract_features(sample)
+                else:
+                    text_feats = self.model.extract_features(sample, mode="text")
+                if project_lower:
+                    text_feats = text_feats.text_embeds_proj
+                else:
+                    text_feats = text_feats.text_embeds
+                
+                # Compute similarity between image and text features.
+                sim_scores = torch.diag(
+                    img_feats[:, 0, :] @ text_feats[:, 0, :].t()
+                ).reshape(-1, len(in_text))
+                class_probs = torch.softmax(sim_scores / 0.01, dim=1)
+
+                data_points_sim_scores.extend(sim_scores.cpu())
+                data_points_class_probs.extend(class_probs.cpu())
+
         if compute_centroids:
             # Update class-level statistics's keys to respective 
             # class labels for saving as pickle file.
@@ -344,18 +390,19 @@ class FeatureExtractor:
                     label="class-level statistics"
                 )
 
+        data_points_labels = torch.stack(
+            data_points_labels, dim=0
+        ).cpu().numpy()
+
         if vis_pca:
             data_points_embeds = torch.stack(data_points_embeds, dim=0)
-            data_points_labels = torch.stack(
-                data_points_labels, dim=0
-            ).cpu().numpy()
-            data_points_labels = [
+            data_points_label_names = [
                 dataset.classes[lbl]
                 for lbl in data_points_labels
             ]
             self.visualise_using_pca(
                 feat_embeds=data_points_embeds,
-                class_labels=data_points_labels,
+                class_labels=data_points_label_names,
                 class_stats=class_stats,
                 plot_dir=plot_dir,
                 save_plots=save_plots
@@ -366,13 +413,54 @@ class FeatureExtractor:
         if (save_embeds == True) and (out_dir is not None):
             data_point_stats = {
                 "embeds": data_points_embeds.cpu().numpy(),
-                "labels": data_points_labels
+                "labels": data_points_label_names
             }
             save_pickle_data(
                 data=data_point_stats,
                 file_name="data_point_stats.pkl",
                 directory=out_dir,
                 label="data point statistics"
+            )
+
+        # Save similarity scores and class probabilities of 
+         # the different data points as pickle file.
+        if (save_sim_scores == True) and (out_dir is not None):
+            # Compute average similarity and probability scores 
+            # across all data points.
+            data_points_sim_scores = torch.stack(
+                data_points_sim_scores, dim=0
+            ).cpu().numpy()
+            data_points_class_probs = torch.stack(
+                data_points_class_probs, dim=0
+            ).cpu().numpy()
+            err_msg = "Class labels and input text labels mismatch, " + \
+                "should be equal to 2."
+            assert data_points_sim_scores.shape[1] == len(in_text) == 2, err_msg
+            avg_sim_scores = np.zeros(shape=(len(in_text),))
+            avg_class_probs = np.zeros(shape=(len(in_text),))
+            for i_lbl in range(len(in_text)):
+                req_data_points = np.where(data_points_labels == i_lbl)
+                req_data_points = req_data_points[0] if req_data_points[0].shape[0] > 0 else []
+                # Compute avg. similarity scores.
+                avg_sim_scores[i_lbl] = np.mean(
+                    data_points_sim_scores[req_data_points, i_lbl]
+                )
+                # Compute avg. class probabilities.
+                avg_class_probs[i_lbl] = np.mean(
+                    data_points_class_probs[req_data_points, i_lbl]
+                )
+            data_point_stats2 = {
+                "sim_scores": data_points_sim_scores,
+                "class_probs": data_points_class_probs,
+                "avg_sim_scores": avg_sim_scores,
+                "avg_class_probs": avg_class_probs,
+                "labels": [dataset.classes[lbl_idx] for lbl_idx in range(len(in_text))]
+            }
+            save_pickle_data(
+                data=data_point_stats2,
+                file_name="data_point_sim_pro_scores.pkl",
+                directory=out_dir,
+                label="data point similarity and probability scores"
             )
 
         return

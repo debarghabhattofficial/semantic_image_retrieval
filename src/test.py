@@ -29,8 +29,10 @@ def parse_args():
     parser.add_argument(
         "--text_input",
         type=str,
+        nargs="+",
         default="",
-        help="Input text for the model."
+        help="Input text for the model, which can be a single " + \
+            "string or a list of strings."
     )
     parser.add_argument(
         "--out_dir",
@@ -66,6 +68,13 @@ def parse_args():
             "applying PCA decomposition."
     )
     parser.add_argument(
+        "--compute_similarity", 
+        action="store_true",
+        help="Use to match the image embeddings with the " + \
+            "class name embeddings and compute the similarity " + \
+            "score."
+    )
+    parser.add_argument(
         "--save_embeds", 
         action="store_true",
         help="Use to save feature emebeddings of individual " + \
@@ -78,6 +87,12 @@ def parse_args():
         help="Use to save 2D plots of feature embeddings space " + \
             "with different class-specific data points after " + \
             "dimensionality reduction using PCA."
+    )
+    parser.add_argument(
+        "--save_sim_scores", 
+        action="store_true",
+        help="Use to save class-wise similarity and probability " + \
+            "(with temp.= 0.01) scores of input data points."
     )
     parser.add_argument(
         "--verbose", 
@@ -127,13 +142,16 @@ def main():
     else:
         feature_extractor.infer_batch_of_inputs(
             img_path=args.dataset_path,
+            in_text=args.text_input,
             project_lower=args.project_lower,
             compute_centroids=args.compute_centroids,
             out_dir=args.out_dir,
             plot_dir=args.plot_dir,
             vis_pca=args.vis_pca,
+            compute_similarity=args.compute_similarity,
             save_embeds=args.save_embeds,
-            save_plots=args.save_plots
+            save_plots=args.save_plots,
+            save_sim_scores=args.save_sim_scores
         )
 
     return
